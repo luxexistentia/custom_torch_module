@@ -7,6 +7,8 @@ from tqdm.auto import tqdm
 from custom_torch_module import engine
 
 def freeze_model(model, trainable_part, classifier):
+    print(f"[info] Freezing the model(trainable part {trainable_part})...")
+    
     for param in model.parameters():
         param.requires_grad = True
     
@@ -18,6 +20,7 @@ def freeze_model(model, trainable_part, classifier):
     
     for param in classifier.parameters():
         param.requires_grad = True
+    print(f"[info] Successfully Froze the model!(trainable part {trainable_part})\n")
 
     return model
 
