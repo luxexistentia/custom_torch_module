@@ -6,7 +6,7 @@ from torcheval.metrics.functional import multiclass_f1_score
 from statistics import harmonic_mean
 
 class Model_Trainer():
-    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, weights=None, scheduler=None, label_smoothing=None):
+    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None):
         self.device = device
         torch.set_default_device(self.device)
     
@@ -29,9 +29,10 @@ class Model_Trainer():
                 mixup_alpha=(1-self.label_smoothing),  # alpha 값 설정
                 cutmix_alpha=0.0,  # CutMix를 사용하지 않을 경우 0으로 설정
                 label_smoothing=self.label_smoothing,
-                num_classes=model_classifier.out_features)
+                num_classes=num_classes)
 
         print("[info] Sucessfully created the instance.")
+        print(f"[info] Device : {self.device} | Trainable part : {self.trainable_part}")
 
     def train_step(self):
         self.model.train()
@@ -86,7 +87,7 @@ class Model_Trainer():
         best_loss = 100000
         for epoch in tqdm(range(1, epochs+1)):
             print("=-"*25)
-            print(f"Epoch{epoch}")
+            print(f"[info] Epoch{epoch} | Device : {self.device} | Trainable part : {self.trainable_part}\n")
             
             #train epoch
             train_loss, train_f1_score = self.train_step()
@@ -102,14 +103,15 @@ class Model_Trainer():
             loss_ratio = train_loss / test_loss
             f1_score_ratio = test_f1_score / train_f1_score
             
-            print(f"Loss Ratio:{loss_ratio:.4f} | F1 Score Ratio:{f1_score_ratio:.4f}")
+            print(f"Loss Ratio:{loss_ratio:.4f} | F1 Score Ratio:{f1_score_ratio:.4f}\n")
         
             if best_f1_score < test_f1_score or (best_loss > test_loss and best_f1_score == test_f1_score):
                 best_weights = self.model.state_dict()
                 
                 best_f1_score = test_f1_score
                 best_loss = test_loss
-            print(f"Best model | F1 Score:{best_f1_score*100:.2f}% | Loss:{best_loss:.4f}")
+                best_epoch = epoch
+            print(f"Best model(from {best_epoch}epoch) | F1 Score:{best_f1_score*100:.2f}% | Loss:{best_loss:.4f}")
         return best_weights, best_f1_score, best_loss
     
     def train(self, epochs, weights=None, file_name=None, save_weights=True):
