@@ -33,26 +33,26 @@ def build_loader(train_dir, test_dir, train_transform, test_transform, batch_siz
 
     return train_dataloader, test_dataloader
 
-def measure_time(test_func, trial_device, num_imgs, trial_num=5):
-    torch.cuda.empty_cache()
-    oroginal_device = next(model.parameters()).device
-    model = model.to(trial_device)
-    
+def measure_time(test_func, num_imgs, input_data=None, trial_num=5):
     elapsed_time = 0
     for i in tqdm(range(trial_num)):
         start_time = time.time()
-        test_func()
+        
+        if input_data != None:
+            test_func(input_data)
+        else:
+            test_func()
+        
         end_time = time.time()
+        
         elapsed_time += end_time - start_time
 
     imgs_per_sec = trial_num * num_imgs / elapsed_time
 
-    print(f"{trial_num} Trials(device {trial_device}) has done")
+    print(f"{trial_num} Trials has done")
     print(f"Total number of the Images : {num_imgs * trial_num}")
     print(f"Elapsed time : {elapsed_time:.2f} seconds")
     print(f"Imgs / sec : {imgs_per_sec:.2f} fps")
-    
-    model = model.to(oroginal_device)
 
 def build_transform(img_size, is_data_aug=False, interpolation="bicubic"):
     return timm.data.create_transform(input_size=img_size, interpolation=interpolation, is_training=is_data_aug)
