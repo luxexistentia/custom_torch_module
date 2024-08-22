@@ -2,11 +2,11 @@ import torch
 from timm.data import Mixup
 from custom_torch_module import setup_utils
 from tqdm.auto import tqdm
-from torcheval.metrics.functional import multiclass_f1_score
+from torcheval.metrics import MulticlassF1Score
 from statistics import harmonic_mean
 
 class Model_Trainer():
-    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None):
+    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score):
         self.device = device
         torch.set_default_device(self.device)
     
@@ -16,6 +16,7 @@ class Model_Trainer():
         
         self.trainable_part, self.model_classifier = trainable_part, model_classifier
         self.label_smoothing = label_smoothing
+        self.eval_func = eval_func
         
         if weights:
             self.load_weights(weights)
@@ -55,12 +56,11 @@ class Model_Trainer():
             self.optimizer.step()
     
             train_loss.append(loss.item())
-            train_logits = torch.cat((train_logits, y_logits.argmax(dim=1)))
-            train_labels = torch.cat((train_labels, y_hard_label))
+            self.eval_func.update(y_logits, y)
         train_loss = harmonic_mean(train_loss)
-        train_f1_score = multiclass_f1_score(train_logits, train_labels)
+        train_eval_score = self.eval_func.compute()
         
-        return train_loss, train_f1_score
+        return train_loss, train_eval_score
     
     def test_step(self):
         self.model.eval()
@@ -76,43 +76,42 @@ class Model_Trainer():
                 loss = self.loss_fn(y_logits, y)
     
                 test_loss.append(loss.item())
-                test_logits = torch.cat((test_logits, y_logits.argmax(dim=1)))
-                test_labels = torch.cat((test_labels, y))
+                self.eval_func.update(y_logits, y)
         test_loss = harmonic_mean(test_loss)
-        test_f1_score = multiclass_f1_score(test_logits, test_labels)
+        test_eval_score = self.eval_func.compute()
     
-        return test_loss, test_f1_score
+        return test_loss, test_eval_score
     def train_epochs(self, epochs):
-        best_f1_score = 0
+        best_eval_score = -100000
         best_loss = 100000
         for epoch in tqdm(range(1, epochs+1)):
             print("=-"*25)
             print(f"[info] Epoch{epoch} | Device : {self.device} | Trainable part : {self.trainable_part}\n")
             
             #train epoch
-            train_loss, train_f1_score = self.train_step()
-            print(f"Train Loss:{train_loss:.4f} | Train F1 Score:{100*train_f1_score:.2f}%")
+            train_loss, train_eval_score = self.train_step()
+            print(f"Train Loss:{train_loss:.4f} | Train eval Score:{train_eval_score:.4f}")
             
             #test epoch
-            test_loss, test_f1_score = self.test_step()
-            print(f"Test Loss:{test_loss:.4f} | Test F1 Score:{100*test_f1_score:.2f}%")
+            test_loss, test_eval_score = self.test_step()
+            print(f"Test Loss:{test_loss:.4f} | Test eval Score:{test_eval_score:.4f}")
 
             if self.scheduler:
                 self.scheduler.step()
         
             loss_ratio = train_loss / test_loss
-            f1_score_ratio = test_f1_score / train_f1_score
+            eval_score_ratio = test_eval_score / train_eval_score
             
-            print(f"Loss Ratio:{loss_ratio:.4f} | F1 Score Ratio:{f1_score_ratio:.4f}\n")
+            print(f"Loss Ratio:{loss_ratio:.4f} | eval Score Ratio:{eval_score_ratio:.4f}\n")
         
-            if best_f1_score < test_f1_score or (best_loss > test_loss and best_f1_score == test_f1_score):
+            if best_eval_score < test_eval_score or (best_loss > test_loss and best_eval_score == test_eval_score):
                 best_weights = self.model.state_dict()
                 
-                best_f1_score = test_f1_score
+                best_eval_score = test_eval_score
                 best_loss = test_loss
                 best_epoch = epoch
-            print(f"Best model(from {best_epoch}epoch) | F1 Score:{best_f1_score*100:.2f}% | Loss:{best_loss:.4f}")
-        return best_weights, best_f1_score, best_loss
+            print(f"Best model(from {best_epoch}epoch) | eval Score:{best_eval_score:.4f} | Loss:{best_loss:.4f}")
+        return best_weights, best_eval_score, best_loss
     
     def train(self, epochs, weights=None, file_name=None, save_weights=True):
         if weights != None:
@@ -121,25 +120,26 @@ class Model_Trainer():
             print("[info] No Weights were found for the model. Freezing the model & Starting train of the head part first...")
             
             self.model = setup_utils.freeze_model(self.model, 0, self.model_classifier) # 웨이트 없으면 먼저 헤드 훈련 진행 후 모델 전체 훈련 진행
-            best_weights, best_f1_score, best_loss = self.train_epochs(epochs)
+            best_weights, best_eval_score, best_loss = self.train_epochs(epochs)
             
             print("[info] Pretrain of head part has done. Loading the best weights...")
-            print(f"[info] Best F1 Score:{best_f1_score*100:.2f}% | Best Loss:{best_loss:.6f}")
+            print(f"[info] Best eval Score:{best_eval_score:.4f} | Best Loss:{best_loss:.6f}")
     
             self.model.load_state_dict(best_weights)
             print("[info] Succesfully loaded the weights")
     
         self.model = setup_utils.freeze_model(self.model, self.trainable_part, self.model_classifier) # need to be edited
         
-        best_weights, best_f1_score, best_loss = self.train_epochs(epochs)
+        best_weights, best_eval_score, best_loss = self.train_epochs(epochs)
     
         if save_weights:
-            file_name = file_name + f" (F1 Score {best_f1_score*100:.2f}%, Loss {best_loss:6f}).pth"
+            file_name = file_name + f" (eval Score {best_eval_score:.4f}, Loss {best_loss:6f}).pth"
             torch.save(obj=best_weights, f=file_name)
             print("[info] Best weights has saved.")
-            print(f"[info] Best F1 score:{best_f1_score*100:.2f}% | Best Loss:{best_loss:.6f}")
+            print(f"[info] Best eval score:{best_eval_score:.4f} | Best Loss:{best_loss:.6f}")
 
-            self.load_weights(best_weights)
+        self.load_weights(best_weights)
+        print("[info] Best weights has loaded to the model.")
     
     def load_weights(self, weights):
         print("[info] Loading the weights to the model...")
