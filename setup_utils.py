@@ -26,11 +26,11 @@ def freeze_model(model, trainable_part, classifier):
 
 def build_loader(train_dir, test_dir, train_transform, test_transform, custom_dataset=None, batch_size=32, device="cpu"):
     if custom_dataset:
-        train_data = datasets.ImageFolder(train_dir, train_transform)
-        test_data = datasets.ImageFolder(test_dir, test_transform)
-    else:
         train_data = custom_dataset(train_dir, train_transform)
         test_data = custom_dataset(test_dir, test_transform)
+    else:
+        train_data = datasets.ImageFolder(train_dir, train_transform)
+        test_data = datasets.ImageFolder(test_dir, test_transform)
     
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=device))
     test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
