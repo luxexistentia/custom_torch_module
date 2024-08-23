@@ -7,7 +7,7 @@ from statistics import harmonic_mean
 import copy
 
 class Model_Trainer():
-    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score):
+    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score()):
         self.device = device
         torch.set_default_device(self.device)
     
@@ -59,7 +59,7 @@ class Model_Trainer():
             self.optimizer.step()
     
             train_loss.append(loss.item())
-            self.eval_func.update(y_logits, y)
+            self.eval_func.update(y_logits, y_hard_label)
         train_loss = harmonic_mean(train_loss)
         train_eval_score = self.eval_func.compute()
         
