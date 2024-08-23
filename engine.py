@@ -4,6 +4,7 @@ from custom_torch_module import setup_utils
 from tqdm.auto import tqdm
 from torcheval.metrics import MulticlassF1Score
 from statistics import harmonic_mean
+import copy
 
 class Model_Trainer():
     def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score):
@@ -37,9 +38,11 @@ class Model_Trainer():
 
     def train_step(self):
         self.model.train()
+        
         train_loss = []
         train_logits = torch.empty([0])
         train_labels = torch.empty([0])
+        self.eval_func.reset()
         for X, y in self.train_dataloader:
             y_hard_label = y.to(self.device)
             
@@ -68,6 +71,7 @@ class Model_Trainer():
         test_loss = []
         test_logits = torch.empty([0])
         test_labels = torch.empty([0])
+        self.eval_func.reset()
         with torch.inference_mode():
             for X, y in self.test_dataloader:
                 X, y = X.to(self.device), y.to(self.device)
@@ -105,7 +109,7 @@ class Model_Trainer():
             print(f"Loss Ratio:{loss_ratio:.4f} | eval Score Ratio:{eval_score_ratio:.4f}\n")
         
             if best_eval_score < test_eval_score or (best_loss > test_loss and best_eval_score == test_eval_score):
-                best_weights = self.model.state_dict()
+                best_weights = copy.deepcopy(self.model.state_dict())
                 
                 best_eval_score = test_eval_score
                 best_loss = test_loss
