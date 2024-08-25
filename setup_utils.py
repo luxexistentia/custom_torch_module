@@ -5,6 +5,9 @@ from torch.utils.data import DataLoader
 import timm
 from tqdm.auto import tqdm
 from custom_torch_module import engine
+import shutil
+import random
+import os
 
 def freeze_model(model, trainable_part, classifier):
     print(f"[info] Freezing the model(trainable part {trainable_part})...")
@@ -60,3 +63,20 @@ def measure_time(test_func, num_imgs, input_data=None, trial_num=5):
 
 def build_transform(img_size, is_data_aug=False, interpolation="bicubic"):
     return timm.data.create_transform(input_size=img_size, interpolation=interpolation, is_training=is_data_aug)
+
+def split_dataset(origin_dir, train_dir, test_dir, test_percent=0.2):
+    test_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
+    total_num = len(test_path_list)
+    print(f"[info] Total Files : {total_num} files")
+    test_path_list = random.sample(test_path_list, k=round(len(test_path_list)*test_percent))
+
+    for file_path in tqdm(test_path_list):
+        shutil.move(os.path.join(origin_dir, file_path), os.path.join(test_dir, file_path))
+    print(f"[info] {len(test_path_list)} Files({100*len(test_path_list)/total_num:.2f}%) has been moved to test directory({test_dir})")
+    
+    train_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
+    for file_path in tqdm(train_path_list):
+        shutil.move(os.path.join(origin_dir, file_path), os.path.join(train_dir, file_path))
+    print(f"[info] {len(train_path_list)} Files({100*len(train_path_list)/total_num:.2f}%) has been moved to test directory({train_dir})")
+        
+        
