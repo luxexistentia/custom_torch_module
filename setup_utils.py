@@ -67,7 +67,12 @@ def build_transform(img_size, is_data_aug=False, interpolation="bicubic"):
 def split_dataset(origin_dir, train_dir, test_dir, test_percent=0.2):
     test_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
     total_num = len(test_path_list)
+    
     print(f"[info] Total Files : {total_num} files")
+    if total_num == 0:
+        print(f"[info] No file was found. Please check the directories")
+        return
+    
     test_path_list = random.sample(test_path_list, k=round(len(test_path_list)*test_percent))
 
     for file_path in tqdm(test_path_list):
@@ -80,13 +85,16 @@ def split_dataset(origin_dir, train_dir, test_dir, test_percent=0.2):
     print(f"[info] {len(train_path_list)} Files({100*len(train_path_list)/total_num:.2f}%) has been moved to test directory({train_dir})")
         
 def merge_dataset(target_dir, train_dir, test_dir):
-    test_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
-    train_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
+    test_path_list = [f for f in os.listdir(test_dir) if os.path.isfile(os.path.join(test_dir, f))]
+    train_path_list = [f for f in os.listdir(train_dir) if os.path.isfile(os.path.join(train_dir, f))]
 
     test_len = len(test_path_list)
     train_len = len(train_path_list)
     total_num = test_len + train_len
     print(f"[info] Total Files : {total_num} files")
+    if total_num == 0:
+        print(f"[info] No file was found. Please check the directories")
+        return
 
     for file_path in tqdm(test_path_list):
         shutil.move(os.path.join(test_dir, file_path), os.path.join(target_dir, file_path))
