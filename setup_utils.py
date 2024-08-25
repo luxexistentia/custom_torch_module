@@ -79,4 +79,19 @@ def split_dataset(origin_dir, train_dir, test_dir, test_percent=0.2):
         shutil.move(os.path.join(origin_dir, file_path), os.path.join(train_dir, file_path))
     print(f"[info] {len(train_path_list)} Files({100*len(train_path_list)/total_num:.2f}%) has been moved to test directory({train_dir})")
         
-        
+def merge_dataset(target_dir, train_dir, test_dir):
+    test_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
+    train_path_list = [f for f in os.listdir(origin_dir) if os.path.isfile(os.path.join(origin_dir, f))]
+
+    test_len = len(test_path_list)
+    train_len = len(train_path_list)
+    total_num = test_len + train_len
+    print(f"[info] Total Files : {total_num} files")
+
+    for file_path in tqdm(test_path_list):
+        shutil.move(os.path.join(test_dir, file_path), os.path.join(target_dir, file_path))
+    print(f"[info] {test_len} Files({100*test_len/total_num:.2f}%) has been moved to target directory({target_dir})")
+    
+    for file_path in tqdm(train_path_list):
+        shutil.move(os.path.join(train_dir, file_path), os.path.join(target_dir, file_path))
+    print(f"[info] {train_len} Files({100*train_len/total_num:.2f}%) has been moved to target directory({target_dir})")
