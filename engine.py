@@ -7,7 +7,7 @@ from statistics import harmonic_mean
 import copy
 
 class Model_Trainer():
-    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score()):
+    def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score(), use_amp=True):
         self.device = device
         torch.set_default_device(self.device)
     
@@ -18,6 +18,9 @@ class Model_Trainer():
         self.trainable_part, self.model_classifier = trainable_part, model_classifier
         self.label_smoothing = label_smoothing
         self.eval_func = eval_func
+
+        self.use_amp = use_amp
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
         
         if weights:
             self.load_weights(weights)
@@ -44,20 +47,22 @@ class Model_Trainer():
         train_labels = torch.empty([0])
         self.eval_func.reset()
         for X, y in self.train_dataloader:
-            y_hard_label = y.to(self.device)
-            
-            if self.label_smoothing:
-                X, y = self.mixup_fn(X, y)
+            with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                y_hard_label = y.to(self.device)
                 
-            X, y = X.to(self.device), y.to(self.device)
-            
-            y_logits = self.model(X)
+                if self.label_smoothing:
+                    X, y = self.mixup_fn(X, y)
+                    
+                X, y = X.to(self.device), y.to(self.device)
+                y_logits = self.model(X)
+                
+                loss = self.loss_fn(y_logits, y)
     
             self.optimizer.zero_grad()
-            loss = self.loss_fn(y_logits, y)
-            loss.backward()
-            self.optimizer.step()
-    
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+            
             train_loss.append(loss.item())
             self.eval_func.update(y_logits, y_hard_label)
         train_loss = harmonic_mean(train_loss)
