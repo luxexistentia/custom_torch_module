@@ -75,10 +75,11 @@ class Model_Trainer():
         self.eval_func.reset()
         with torch.inference_mode():
             for X, y in self.test_dataloader:
-                X, y = X.to(self.device), y.to(self.device)
-                y_logits = self.model(X)
-    
-                loss = self.loss_fn(y_logits, y)
+                with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                    X, y = X.to(self.device), y.to(self.device)
+                    y_logits = self.model(X)
+        
+                    loss = self.loss_fn(y_logits, y)
     
                 test_loss.append(loss.item())
                 self.eval_func.update(y_logits, y)
