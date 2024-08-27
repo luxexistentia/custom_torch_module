@@ -43,8 +43,6 @@ class Model_Trainer():
         self.model.train()
         
         train_loss = []
-        train_logits = torch.empty([0])
-        train_labels = torch.empty([0])
         self.eval_func.reset()
         for X, y in self.train_dataloader:
             with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
@@ -74,8 +72,6 @@ class Model_Trainer():
         self.model.eval()
         
         test_loss = []
-        test_logits = torch.empty([0])
-        test_labels = torch.empty([0])
         self.eval_func.reset()
         with torch.inference_mode():
             for X, y in self.test_dataloader:
