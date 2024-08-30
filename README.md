@@ -14,3 +14,8 @@ I've been making it for myself.
 But also you can use it and contribute as you want under MIT License.
 
 Let me know if there is any bug, error or idea!
+
+Idea List
+-
+1. To add wandb compatibility
+2. To add Visualize function for evaluation for test images
