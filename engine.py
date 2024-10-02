@@ -20,7 +20,7 @@ class Model_Trainer():
         self.eval_func = eval_func
 
         self.use_amp = use_amp
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
+        self.scaler = torch.amp.GradScaler(self.device, enabled=self.use_amp)
         
         if weights:
             self.load_weights(weights)
