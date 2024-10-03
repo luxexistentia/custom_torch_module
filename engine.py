@@ -51,7 +51,7 @@ class Model_Trainer():
         self.eval_func.reset()
         for X, y in self.train_dataloader:
             if self.use_amp and torch.amp.autocast_mode.is_autocast_available(self.device):
-                with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                with torch.autocast(device_type=self.device):
                     y_hard_label = y.to(self.device)
                     
                     if self.label_smoothing:
@@ -92,7 +92,7 @@ class Model_Trainer():
         with torch.inference_mode():
             for X, y in self.test_dataloader:
                 if self.use_amp and torch.amp.autocast_mode.is_autocast_available(self.device):
-                    with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                    with torch.autocast(device_type=self.device):
                         X, y = X.to(self.device), y.to(self.device)
                         y_logits = self.model(X)
             
