@@ -8,6 +8,9 @@ import copy
 
 class Model_Trainer():
     def __init__(self, model, train_dataloader, test_dataloader, optimizer, loss_fn, device, trainable_part, model_classifier, num_classes, weights=None, scheduler=None, label_smoothing=None, eval_func=MulticlassF1Score(), use_amp=True):
+        if use_amp and not torch.amp.autocast_mode.is_autocast_available(device):
+            raise Exception(f"Cannot use AMP on the device :{device}")
+        
         self.device = device
         torch.set_default_device(self.device)
     
@@ -20,7 +23,7 @@ class Model_Trainer():
         self.eval_func = eval_func
 
         self.use_amp = use_amp
-        self.scaler = torch.amp.GradScaler(self.device, enabled=self.use_amp)
+        self.scaler = torch.GradScaler(self.device, enabled=self.use_amp)
         
         if weights:
             self.load_weights(weights)
@@ -36,6 +39,8 @@ class Model_Trainer():
                 label_smoothing=self.label_smoothing,
                 num_classes=num_classes)
 
+        
+
         print("[info] Sucessfully created the instance.")
         print(f"[info] Device : {self.device} | Trainable part : {self.trainable_part}")
 
@@ -45,7 +50,18 @@ class Model_Trainer():
         train_loss = []
         self.eval_func.reset()
         for X, y in self.train_dataloader:
-            with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+            if self.use_amp and torch.amp.autocast_mode.is_autocast_available(self.device):
+                with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                    y_hard_label = y.to(self.device)
+                    
+                    if self.label_smoothing:
+                        X, y = self.mixup_fn(X, y)
+                        
+                    X, y = X.to(self.device), y.to(self.device)
+                    y_logits = self.model(X)
+                    
+                    loss = self.loss_fn(y_logits, y)
+            else:
                 y_hard_label = y.to(self.device)
                 
                 if self.label_smoothing:
@@ -75,7 +91,13 @@ class Model_Trainer():
         self.eval_func.reset()
         with torch.inference_mode():
             for X, y in self.test_dataloader:
-                with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                if self.use_amp and torch.amp.autocast_mode.is_autocast_available(self.device):
+                    with torch.autocast(device_type=self.device, enabled=self.use_amp):# auto Cast to torch.float16 if self.use_amp is True
+                        X, y = X.to(self.device), y.to(self.device)
+                        y_logits = self.model(X)
+            
+                        loss = self.loss_fn(y_logits, y)
+                else:
                     X, y = X.to(self.device), y.to(self.device)
                     y_logits = self.model(X)
         
