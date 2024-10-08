@@ -144,19 +144,9 @@ class Model_Trainer():
     def train(self, epochs, weights=None, file_name=None, save_weights=True):
         if weights != None:
             self.load_weights(weights)
-        elif self.trainable_part != 0 and self.weights == None:
-            print("[info] No Weights were found for the model. Freezing the model & Starting train of the head part first...")
-            
-            self.model = setup_utils.freeze_model(self.model, 0, self.model_classifier) # 웨이트 없으면 먼저 헤드 훈련 진행 후 모델 전체 훈련 진행
-            best_weights, best_eval_score, best_loss = self.train_epochs(epochs)
-            
-            print("[info] Pretrain of head part has done. Loading the best weights...")
-            print(f"[info] Best eval Score:{best_eval_score:.4f} | Best Loss:{best_loss:.6f}")
+            print(f"[info] Succesfully loaded the weights to the model.")
     
-            self.model.load_state_dict(best_weights)
-            print("[info] Succesfully loaded the weights")
-    
-        self.model = setup_utils.freeze_model(self.model, self.trainable_part, self.model_classifier) # need to be edited
+        self.model = setup_utils.freeze_model(self.model, self.trainable_part, self.model_classifier)
         
         best_weights, best_eval_score, best_loss = self.train_epochs(epochs)
     
