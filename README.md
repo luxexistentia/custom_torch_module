@@ -17,5 +17,6 @@ Let me know if there is any bug, error or idea!
 
 Idea List
 -
+0. To make split_dataset compitable with classification dataset(v2i file reference)
 1. To add wandb compatibility
 2. To add Visualize function for evaluation for test images
