@@ -32,8 +32,8 @@ def build_loader(train_dir, test_dir, train_transform, test_transform, custom_da
         train_data = custom_dataset(train_dir, train_transform)
         test_data = custom_dataset(test_dir, test_transform)
     else:
-        train_data = datasets.ImageFolder(train_dir, train_transform)
-        test_data = datasets.ImageFolder(test_dir, test_transform)
+        train_data = datasets.ImageFolder(train_dir, train_transform, allow_empty=True)
+        test_data = datasets.ImageFolder(test_dir, test_transform, allow_empty=True)
 
     if dataset_size < 1:
         data_len = int(len(train_data) * dataset_size)
